@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: prettier
+      glob: '*.{ts,tsx,js,json}'
+      run: npx prettier --check {staged_files}
+
+    - name: lint
+      glob: '*.{ts,tsx}'
+      run: npx eslint {staged_files} --max-warnings 0
+
+    - name: typecheck
+      run: pnpm typecheck
+
+pre-push:
+  jobs:
+    - name: check
+      run: make check

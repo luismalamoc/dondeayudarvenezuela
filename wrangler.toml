@@ -1,0 +1,20 @@
+# wrangler.toml
+name = 'dondeayudarvenezuela'
+main = 'workers/api.ts'
+compatibility_date = '2026-06-26'
+workers_dev = true
+
+[assets]
+directory = './dist'
+binding = 'ASSETS'
+not_found_handling = 'single-page-application'
+
+[[d1_databases]]
+binding = 'DB'
+database_name = 'dondeayudarvenezuela'
+database_id = '53b58ea8-3bb1-4bd6-9ee8-0516cd7bc503'
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
