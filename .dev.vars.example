@@ -1,0 +1,4 @@
+ADMIN_SECRET=change-me-before-running-locally
+# Clave secreta de Cloudflare Turnstile (server-side). Si se omite, el Worker no valida el captcha.
+# Clave de prueba que siempre pasa: 1x0000000000000000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA

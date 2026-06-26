@@ -1,0 +1,44 @@
+{
+  "name": "ayuda-venezuela",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "deploy": "pnpm build && wrangler deploy",
+    "dev:worker": "pnpm build && wrangler dev",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 execute ayuda-venezuela-db --local --file=./db/schema.sql",
+    "db:seed:local": "wrangler d1 execute ayuda-venezuela-db --local --file=./db/seed.sql",
+    "db:migrate:remote": "wrangler d1 execute ayuda-venezuela-db --remote --file=./db/schema.sql",
+    "db:seed:remote": "wrangler d1 execute ayuda-venezuela-db --remote --file=./db/seed.sql",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "1.21.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260625.1",
+    "@eslint/js": "10.0.1",
+    "@tailwindcss/vite": "4.3.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "eslint": "10.5.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.7.0",
+    "tailwindcss": "4.3.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.62.0",
+    "vite": "8.1.0",
+    "vitest": "3.2.4",
+    "wrangler": "4.105.0"
+  }
+}
