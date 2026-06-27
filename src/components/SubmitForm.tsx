@@ -114,12 +114,7 @@ export default function SubmitForm({ t, lang }: SubmitFormProps) {
         </label>
         {TURNSTILE_SITE_KEY ? (
           <div className="md:col-span-2">
-            <Turnstile
-              siteKey={TURNSTILE_SITE_KEY}
-              language={lang}
-              onVerify={handleVerify}
-              onExpire={handleExpire}
-            />
+            <Turnstile siteKey={TURNSTILE_SITE_KEY} language={lang} onVerify={handleVerify} onExpire={handleExpire} />
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">
@@ -131,14 +126,6 @@ export default function SubmitForm({ t, lang }: SubmitFormProps) {
             <Send size={16} aria-hidden="true" />
             {status === 'loading' ? t.submit.sending : t.submit.send}
           </button>
-          <a
-            href="https://www.instagram.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md border border-slate-300 px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
-          >
-            {t.submit.dm}
-          </a>
         </div>
       </form>
 

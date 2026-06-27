@@ -16,6 +16,9 @@
     "db:migrate:remote": "wrangler d1 execute ayuda-venezuela-db --remote --file=./db/schema.sql",
     "db:seed:remote": "wrangler d1 execute ayuda-venezuela-db --remote --file=./db/seed.sql",
     "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"workers/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"workers/**/*.ts\"",
+    "prepare": "lefthook install",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -34,6 +37,8 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.7.0",
+    "lefthook": "2.1.9",
+    "prettier": "3.8.5",
     "tailwindcss": "4.3.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.62.0",

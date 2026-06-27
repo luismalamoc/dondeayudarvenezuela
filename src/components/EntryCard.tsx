@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import {
+  AtSign,
   Building2,
   CreditCard,
   DollarSign,
@@ -7,6 +8,7 @@ import {
   Globe2,
   Landmark,
   Mail,
+  MapPin,
   Megaphone,
   MessageCircle,
   ShieldCheck,
@@ -14,10 +16,11 @@ import {
   Star,
   User,
   Wallet,
+  X as XIcon,
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
 import type { Dictionary } from '../i18n/types'
-import type { Entry, Lang, MethodType } from '../types'
+import type { ContactMethod, ContactMethodType, Entry, Lang, MethodType, PaymentMethod } from '../types'
 import { entryDescription, groupMethods } from '../lib/entries'
 
 interface EntryCardProps {
@@ -26,7 +29,7 @@ interface EntryCardProps {
   t: Dictionary
 }
 
-const icons: Record<MethodType, ComponentType<LucideProps>> = {
+const paymentIcons: Record<MethodType, ComponentType<LucideProps>> = {
   banco_ve: Landmark,
   banco_us: Landmark,
   banco_cl: Landmark,
@@ -38,14 +41,64 @@ const icons: Record<MethodType, ComponentType<LucideProps>> = {
   donorbox: CreditCard,
   globalgiving: Globe2,
   gofundme: Globe2,
-  whatsapp: MessageCircle,
   otro: Wallet,
+}
+
+const contactIcons: Record<ContactMethodType, ComponentType<LucideProps>> = {
+  whatsapp: MessageCircle,
+  instagram: AtSign,
+  x: XIcon,
+  web: Globe2,
+}
+
+function whatsappHref(phone: string): string {
+  const digits = phone.replace(/[^\d]/g, '')
+  return `https://wa.me/${digits}`
+}
+
+function contactHref(contact: ContactMethod): string {
+  const { tipo, detalle } = contact
+  if (tipo === 'whatsapp') return whatsappHref(detalle)
+  if (detalle.startsWith('http')) return detalle
+  const handle = detalle.startsWith('@') ? detalle.slice(1) : detalle
+  if (tipo === 'instagram') return `https://instagram.com/${handle}`
+  if (tipo === 'x') return `https://x.com/${handle}`
+  return detalle
+}
+
+function ContactMethodItem({ contact }: { contact: ContactMethod }) {
+  const Icon = contactIcons[contact.tipo as ContactMethodType] ?? Globe2
+  const href = contactHref(contact)
+  const isLink = href.startsWith('http')
+
+  return (
+    <li className="flex items-start gap-2 text-sm text-slate-700">
+      <Icon size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+      <span>
+        {contact.label ? <span className="font-semibold">{contact.label}: </span> : null}
+        {isLink ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="break-all text-[#071a3d] underline underline-offset-2 hover:text-[#0d2a61]"
+          >
+            {contact.detalle}
+          </a>
+        ) : (
+          <span className="break-all">{contact.detalle}</span>
+        )}
+      </span>
+    </li>
+  )
 }
 
 export default function EntryCard({ entry, lang, t }: EntryCardProps) {
   const TypeIcon = entry.tipo === 'persona' ? User : Building2
   const description = entryDescription(entry, lang)
   const groupedMethods = groupMethods(entry.metodos)
+  const hasContactos = entry.contactos.length > 0
+  const hasLocation = entry.estado_ve || entry.ciudad_ve
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -74,6 +127,12 @@ export default function EntryCard({ entry, lang, t }: EntryCardProps) {
                 </span>
               </p>
             ) : null}
+            {hasLocation ? (
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                <MapPin size={14} aria-hidden="true" />
+                {[entry.ciudad_ve, entry.estado_ve].filter(Boolean).join(', ')}
+              </p>
+            ) : null}
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
           </div>
         </div>
@@ -97,6 +156,17 @@ export default function EntryCard({ entry, lang, t }: EntryCardProps) {
         ) : null}
       </div>
 
+      {hasContactos ? (
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">{t.entry.contact}</h3>
+          <ul className="mt-2 space-y-1.5">
+            {entry.contactos.map((contact) => (
+              <ContactMethodItem key={contact.id} contact={contact} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="mt-5 border-t border-slate-200 pt-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">{t.entry.methods}</h3>
         {groupedMethods.size === 0 ? (
@@ -104,7 +174,7 @@ export default function EntryCard({ entry, lang, t }: EntryCardProps) {
         ) : (
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {[...groupedMethods.entries()].map(([type, methods]) => {
-              const Icon = icons[type] ?? Wallet
+              const Icon = paymentIcons[type] ?? Wallet
               return (
                 <div key={type} className="rounded-md border border-slate-200 bg-slate-50 p-3">
                   <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800">
@@ -112,7 +182,7 @@ export default function EntryCard({ entry, lang, t }: EntryCardProps) {
                     {t.methodLabels[type] ?? type}
                   </div>
                   <ul className="space-y-2">
-                    {methods.map((method) => (
+                    {methods.map((method: PaymentMethod) => (
                       <li key={method.id} className="text-sm leading-5 text-slate-700">
                         <span className="block break-words">{method.detalle}</span>
                         <span className="text-xs font-semibold uppercase text-slate-500">

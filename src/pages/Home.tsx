@@ -51,8 +51,8 @@ export default function Home({ lang, setLang, t }: HomeProps) {
             {t.nav.title}
           </a>
           <nav className="flex items-center gap-3">
-            <a href="/admin" className="rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
-              {t.nav.admin}
+            <a href="/acerca" className="rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+              {t.nav.about}
             </a>
             <LangToggle lang={lang} setLang={setLang} />
           </nav>
@@ -69,7 +69,9 @@ export default function Home({ lang, setLang, t }: HomeProps) {
         <section className="grid gap-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
             <p className="text-sm font-black uppercase tracking-wide text-[#b71c1c]">{t.hero.eyebrow}</p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight text-[#071a3d] sm:text-5xl">{t.hero.title}</h1>
+            <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight text-[#071a3d] sm:text-5xl">
+              {t.hero.title}
+            </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">{t.hero.body}</p>
             <a
               href="#solicitar"
@@ -81,7 +83,7 @@ export default function Home({ lang, setLang, t }: HomeProps) {
           <div className="rounded-lg border border-slate-200 bg-[#071a3d] p-5 text-white">
             <div className="grid gap-3 text-sm font-semibold">
               <div className="rounded-md bg-white/10 p-4">Venezuela</div>
-              <div className="rounded-md bg-[#ffdf42] p-4 text-[#071a3d]">Ayuda verificada</div>
+              <div className="rounded-md bg-[#ffdf42] p-4 text-[#071a3d]">Ayuda directa</div>
               <div className="rounded-md bg-[#b71c1c] p-4">24 junio 2026</div>
             </div>
           </div>
@@ -90,7 +92,9 @@ export default function Home({ lang, setLang, t }: HomeProps) {
         <FilterBar filters={filters} setFilters={setFilters} t={t} />
 
         {loading ? <p className="rounded-lg border border-slate-200 bg-white p-5 text-slate-600">{t.loading}</p> : null}
-        {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-5 font-semibold text-red-800">{error}</p> : null}
+        {error ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 p-5 font-semibold text-red-800">{error}</p>
+        ) : null}
 
         <section className="grid gap-5">
           {filteredEntries.map((entry) => (
@@ -100,6 +104,24 @@ export default function Home({ lang, setLang, t }: HomeProps) {
 
         <SubmitForm t={t} lang={lang} />
       </main>
+
+      <footer className="mt-8 border-t border-slate-200 bg-white py-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 text-sm text-slate-500 sm:px-6 lg:px-8">
+          <span>Hecho con amor ❤️ y con IA 🤣</span>
+          <a href="https://instagram.com/luismalamoc" target="_blank" rel="noreferrer" className="hover:text-slate-800">
+            @luismalamoc
+          </a>
+          <a href="mailto:luismalamoc@gmail.com" className="hover:text-slate-800">
+            luismalamoc@gmail.com
+          </a>
+          <a href="https://github.com/luismalamoc" target="_blank" rel="noreferrer" className="hover:text-slate-800">
+            GitHub
+          </a>
+          <a href="/acerca" className="hover:text-slate-800">
+            {t.nav.about}
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }

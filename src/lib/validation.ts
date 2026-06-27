@@ -23,10 +23,5 @@ export function isValidEntry(payload: EntryValidationInput | null | undefined): 
 
 /** Una solicitud es valida con nombre, tipo permitido, verificacion y contacto. */
 export function isValidSolicitud(payload: SolicitudValidationInput | null | undefined): boolean {
-  return Boolean(
-    payload?.nombre &&
-      isEntryType(payload?.tipo) &&
-      payload?.verificacion_url &&
-      payload?.contacto,
-  )
+  return Boolean(payload?.nombre && isEntryType(payload?.tipo) && payload?.verificacion_url && payload?.contacto)
 }

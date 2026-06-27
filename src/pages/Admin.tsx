@@ -2,17 +2,30 @@ import { useEffect, useState } from 'react'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import LangToggle from '../components/LangToggle'
 import {
+  createContactMethod,
   createEntry,
   createMethod,
   deactivateEntry,
   getAdminEntries,
   getAdminSolicitudes,
+  removeContactMethod,
   removeMethod,
   updateSolicitud,
 } from '../lib/api'
 import type { Dictionary } from '../i18n/types'
-import type { Entry, EntryDraft, Lang, MethodDraft, MethodType, Solicitud } from '../types'
+import type {
+  ContactMethod,
+  ContactMethodDraft,
+  ContactMethodType,
+  Entry,
+  EntryDraft,
+  Lang,
+  MethodDraft,
+  MethodType,
+  Solicitud,
+} from '../types'
 import { CURRENCIES } from '../lib/currencies'
+import { ESTADOS_VENEZUELA } from '../lib/venezuela'
 
 interface AdminProps {
   lang: Lang
@@ -24,6 +37,10 @@ function emptyMethod(): MethodDraft {
   return { tipo: 'otro', pais: '', detalle: '', moneda: '' }
 }
 
+function emptyContact(): ContactMethodDraft {
+  return { tipo: 'whatsapp', label: '', detalle: '' }
+}
+
 function emptyEntry(): EntryDraft {
   return {
     tipo: 'persona',
@@ -32,8 +49,11 @@ function emptyEntry(): EntryDraft {
     descripcion_es: '',
     descripcion_en: '',
     verificacion_url: '',
+    estado_ve: '',
+    ciudad_ve: '',
     destacado: 0,
     metodos: [emptyMethod()],
+    contactos: [emptyContact()],
   }
 }
 
@@ -45,9 +65,22 @@ interface MethodForm {
   moneda: string
 }
 
+interface ContactForm {
+  entrada_id: string
+  tipo: ContactMethodType
+  label: string
+  detalle: string
+}
+
 function emptyMethodForm(): MethodForm {
   return { entrada_id: '', tipo: 'otro', pais: '', detalle: '', moneda: '' }
 }
+
+function emptyContactForm(): ContactForm {
+  return { entrada_id: '', tipo: 'whatsapp', label: '', detalle: '' }
+}
+
+const CONTACT_TYPES: ContactMethodType[] = ['whatsapp', 'instagram', 'x', 'web']
 
 export default function Admin({ lang, setLang, t }: AdminProps) {
   const [secret, setSecret] = useState<string>(() => window.sessionStorage.getItem('admin-secret') ?? '')
@@ -56,6 +89,7 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
   const [requests, setRequests] = useState<Solicitud[]>([])
   const [entryForm, setEntryForm] = useState<EntryDraft>(emptyEntry)
   const [methodForm, setMethodForm] = useState<MethodForm>(emptyMethodForm)
+  const [contactForm, setContactForm] = useState<ContactForm>(emptyContactForm)
   const [message, setMessage] = useState('')
 
   async function loadAdminData(activeSecret: string) {
@@ -93,9 +127,18 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
   function updateEntryMethod<K extends keyof MethodDraft>(index: number, field: K, value: MethodDraft[K]) {
     setEntryForm((current) => ({
       ...current,
-      metodos: current.metodos.map((method, methodIndex) =>
-        methodIndex === index ? { ...method, [field]: value } : method,
-      ),
+      metodos: current.metodos.map((method, i) => (i === index ? { ...method, [field]: value } : method)),
+    }))
+  }
+
+  function updateEntryContact<K extends keyof ContactMethodDraft>(
+    index: number,
+    field: K,
+    value: ContactMethodDraft[K],
+  ) {
+    setEntryForm((current) => ({
+      ...current,
+      contactos: current.contactos.map((contact, i) => (i === index ? { ...contact, [field]: value } : contact)),
     }))
   }
 
@@ -138,6 +181,23 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
 
   async function handleRemoveMethod(id: number) {
     await removeMethod(secret, id)
+    await loadAdminData(secret)
+  }
+
+  async function handleAddContact(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await createContactMethod(secret, {
+      entrada_id: Number(contactForm.entrada_id),
+      tipo: contactForm.tipo,
+      label: contactForm.label || null,
+      detalle: contactForm.detalle,
+    })
+    setContactForm(emptyContactForm())
+    await loadAdminData(secret)
+  }
+
+  async function handleRemoveContact(id: number) {
+    await removeContactMethod(secret, id)
     await loadAdminData(secret)
   }
 
@@ -192,7 +252,10 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
           </div>
           <div className="flex items-center gap-3">
             <LangToggle lang={lang} setLang={setLang} />
-            <button onClick={logout} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+            <button
+              onClick={logout}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700"
+            >
               {t.admin.logout}
             </button>
           </div>
@@ -200,7 +263,8 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
       </header>
 
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        {/* New entry form */}
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-xl font-black text-slate-950">{t.admin.newEntry}</h2>
           <form onSubmit={handleCreateEntry} className="mt-4 grid gap-3">
             <div className="grid gap-3 md:grid-cols-2">
@@ -246,6 +310,26 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
               onChange={(event) => updateEntry('verificacion_url', event.target.value)}
               className="rounded-md border border-slate-300 px-3 py-2"
             />
+            <div className="grid gap-3 md:grid-cols-2">
+              <select
+                value={entryForm.estado_ve}
+                onChange={(event) => updateEntry('estado_ve', event.target.value)}
+                className="rounded-md border border-slate-300 bg-white px-3 py-2"
+              >
+                <option value="">{t.admin.stateVe}</option>
+                {ESTADOS_VENEZUELA.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder={t.admin.cityVe}
+                value={entryForm.ciudad_ve}
+                onChange={(event) => updateEntry('ciudad_ve', event.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-2"
+              />
+            </div>
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
@@ -254,6 +338,50 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
               />
               {t.entry.featured}
             </label>
+
+            <p className="text-sm font-bold text-slate-600">{t.entry.contact}</p>
+            <div className="space-y-3">
+              {entryForm.contactos.map((contact, index) => (
+                <div key={index} className="grid gap-2 rounded-md border border-slate-200 p-3 md:grid-cols-3">
+                  <select
+                    value={contact.tipo}
+                    onChange={(event) => updateEntryContact(index, 'tipo', event.target.value as ContactMethodType)}
+                    className="rounded-md border border-slate-300 bg-white px-2 py-2"
+                  >
+                    {CONTACT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {t.contactLabels[type]}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder={t.admin.label}
+                    value={contact.label}
+                    onChange={(event) => updateEntryContact(index, 'label', event.target.value)}
+                    className="rounded-md border border-slate-300 px-2 py-2"
+                  />
+                  <input
+                    required
+                    placeholder={t.admin.detail}
+                    value={contact.detalle}
+                    onChange={(event) => updateEntryContact(index, 'detalle', event.target.value)}
+                    className="rounded-md border border-slate-300 px-2 py-2"
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setEntryForm((current) => ({ ...current, contactos: [...current.contactos, emptyContact()] }))
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-4 py-2 font-bold text-slate-700"
+            >
+              <Plus size={16} aria-hidden="true" />
+              {t.admin.addContact}
+            </button>
+
+            <p className="text-sm font-bold text-slate-600">{t.entry.methods}</p>
             <div className="space-y-3">
               {entryForm.metodos.map((method, index) => (
                 <div key={index} className="grid gap-2 rounded-md border border-slate-200 p-3 md:grid-cols-4">
@@ -304,13 +432,17 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
               <Plus size={16} aria-hidden="true" />
               {t.admin.addMethod}
             </button>
-            <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-md bg-[#071a3d] px-4 py-2 font-bold text-white">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#071a3d] px-4 py-2 font-bold text-white"
+            >
               <Save size={16} aria-hidden="true" />
               {t.admin.create}
             </button>
           </form>
         </section>
 
+        {/* Quick-add payment method */}
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-black text-slate-950">{t.admin.addMethod}</h2>
           <form onSubmit={handleAddMethod} className="mt-4 grid gap-3">
@@ -330,7 +462,9 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
             <div className="grid gap-3 md:grid-cols-3">
               <select
                 value={methodForm.tipo}
-                onChange={(event) => setMethodForm((current) => ({ ...current, tipo: event.target.value as MethodType }))}
+                onChange={(event) =>
+                  setMethodForm((current) => ({ ...current, tipo: event.target.value as MethodType }))
+                }
                 className="rounded-md border border-slate-300 bg-white px-3 py-2"
               >
                 {methodTypes.map((type) => (
@@ -372,6 +506,58 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
           </form>
         </section>
 
+        {/* Quick-add contact method */}
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-black text-slate-950">{t.admin.addContact}</h2>
+          <form onSubmit={handleAddContact} className="mt-4 grid gap-3">
+            <select
+              required
+              value={contactForm.entrada_id}
+              onChange={(event) => setContactForm((current) => ({ ...current, entrada_id: event.target.value }))}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2"
+            >
+              <option value="">{t.admin.entryPlaceholder}</option>
+              {entries.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.nombre}
+                </option>
+              ))}
+            </select>
+            <div className="grid gap-3 md:grid-cols-2">
+              <select
+                value={contactForm.tipo}
+                onChange={(event) =>
+                  setContactForm((current) => ({ ...current, tipo: event.target.value as ContactMethodType }))
+                }
+                className="rounded-md border border-slate-300 bg-white px-3 py-2"
+              >
+                {CONTACT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {t.contactLabels[type]}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder={t.admin.label}
+                value={contactForm.label}
+                onChange={(event) => setContactForm((current) => ({ ...current, label: event.target.value }))}
+                className="rounded-md border border-slate-300 px-3 py-2"
+              />
+            </div>
+            <input
+              required
+              placeholder={t.admin.detail}
+              value={contactForm.detalle}
+              onChange={(event) => setContactForm((current) => ({ ...current, detalle: event.target.value }))}
+              className="rounded-md border border-slate-300 px-3 py-2"
+            />
+            <button type="submit" className="rounded-md bg-[#071a3d] px-4 py-2 font-bold text-white">
+              {t.admin.save}
+            </button>
+          </form>
+        </section>
+
+        {/* Entries list */}
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-xl font-black text-slate-950">{t.admin.entries}</h2>
           <div className="mt-4 grid gap-3">
@@ -383,6 +569,7 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
                     <h3 className="font-black text-slate-950">{entry.nombre}</h3>
                     <p className="text-sm text-slate-600">
                       {entry.tipo} / activo: {entry.activo}
+                      {entry.estado_ve ? ` / ${entry.ciudad_ve ? `${entry.ciudad_ve}, ` : ''}${entry.estado_ve}` : ''}
                     </p>
                   </div>
                   <button
@@ -393,6 +580,21 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
                     {t.admin.deactivate}
                   </button>
                 </div>
+                {entry.contactos.length > 0 ? (
+                  <ul className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                    {entry.contactos.map((contact: ContactMethod) => (
+                      <li key={contact.id} className="flex items-center justify-between gap-3 rounded bg-sky-50 p-2">
+                        <span>
+                          {t.contactLabels[contact.tipo as ContactMethodType] ?? contact.tipo}
+                          {contact.label ? ` (${contact.label})` : ''}: {contact.detalle}
+                        </span>
+                        <button onClick={() => handleRemoveContact(contact.id)} className="font-bold text-red-700">
+                          {t.admin.remove}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 <ul className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                   {entry.metodos.map((method) => (
                     <li key={method.id} className="flex items-center justify-between gap-3 rounded bg-slate-50 p-2">
@@ -410,6 +612,7 @@ export default function Admin({ lang, setLang, t }: AdminProps) {
           </div>
         </section>
 
+        {/* Pending requests */}
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-xl font-black text-slate-950">{t.admin.requests}</h2>
           <div className="mt-4 grid gap-3">

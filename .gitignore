@@ -31,3 +31,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Claude Code (permisos locales con rutas absolutas de maquina)
+.claude/settings.local.json

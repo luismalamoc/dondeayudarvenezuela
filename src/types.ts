@@ -12,8 +12,9 @@ export type MethodType =
   | 'donorbox'
   | 'globalgiving'
   | 'gofundme'
-  | 'whatsapp'
   | 'otro'
+
+export type ContactMethodType = 'whatsapp' | 'instagram' | 'x' | 'web'
 
 export interface PaymentMethod {
   id: number
@@ -24,6 +25,14 @@ export interface PaymentMethod {
   moneda: string | null
 }
 
+export interface ContactMethod {
+  id: number
+  entrada_id: number
+  tipo: ContactMethodType
+  label: string | null
+  detalle: string
+}
+
 export interface Entry {
   id: number
   tipo: EntryType
@@ -32,10 +41,13 @@ export interface Entry {
   descripcion_es: string | null
   descripcion_en: string | null
   verificacion_url: string | null
+  estado_ve: string | null
+  ciudad_ve: string | null
   activo: number
   destacado: number
   creado_en: string
   metodos: PaymentMethod[]
+  contactos: ContactMethod[]
 }
 
 export interface Solicitud {
@@ -59,6 +71,12 @@ export interface MethodDraft {
   moneda: string
 }
 
+export interface ContactMethodDraft {
+  tipo: ContactMethodType
+  label: string
+  detalle: string
+}
+
 export interface EntryDraft {
   tipo: EntryType
   nombre: string
@@ -66,8 +84,11 @@ export interface EntryDraft {
   descripcion_es: string
   descripcion_en: string
   verificacion_url: string
+  estado_ve: string
+  ciudad_ve: string
   destacado: number
   metodos: MethodDraft[]
+  contactos: ContactMethodDraft[]
 }
 
 export interface SolicitudDraft {

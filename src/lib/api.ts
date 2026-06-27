@@ -1,10 +1,4 @@
-import type {
-  Entry,
-  EntryDraft,
-  PaymentMethod,
-  Solicitud,
-  SolicitudDraft,
-} from '../types'
+import type { ContactMethod, Entry, EntryDraft, PaymentMethod, Solicitud, SolicitudDraft } from '../types'
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: string
@@ -80,6 +74,22 @@ export function createMethod(
 
 export function removeMethod(secret: string, id: number) {
   return adminRequest<{ ok: boolean }>(secret, `/api/admin/metodos/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export function createContactMethod(
+  secret: string,
+  payload: Pick<ContactMethod, 'entrada_id' | 'tipo' | 'label' | 'detalle'>,
+) {
+  return adminRequest<{ ok: boolean; id: number }>(secret, '/api/admin/contactos', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function removeContactMethod(secret: string, id: number) {
+  return adminRequest<{ ok: boolean }>(secret, `/api/admin/contactos/${id}`, {
     method: 'DELETE',
   })
 }

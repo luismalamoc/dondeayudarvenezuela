@@ -14,9 +14,7 @@ export function groupMethods(methods: PaymentMethod[]): Map<MethodType, PaymentM
 /** Devuelve la descripcion segun el idioma activo, con respaldo al otro idioma. */
 export function entryDescription(entry: Entry, lang: Lang): string {
   const value =
-    lang === 'en'
-      ? entry.descripcion_en || entry.descripcion_es
-      : entry.descripcion_es || entry.descripcion_en
+    lang === 'en' ? entry.descripcion_en || entry.descripcion_es : entry.descripcion_es || entry.descripcion_en
   return value ?? ''
 }
 

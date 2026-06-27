@@ -40,7 +40,9 @@ export default function FilterBar({ filters, setFilters, t }: FilterBarProps) {
           {t.filters.method}
           <select
             value={filters.method}
-            onChange={(event) => setFilters((current) => ({ ...current, method: event.target.value as Filters['method'] }))}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, method: event.target.value as Filters['method'] }))
+            }
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900"
           >
             <option value="all">{t.filters.all}</option>

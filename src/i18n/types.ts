@@ -1,9 +1,9 @@
-import type { Lang, MethodType } from '../types'
+import type { ContactMethodType, Lang, MethodType } from '../types'
 
 export interface Dictionary {
   lang: Lang
   meta: { title: string }
-  nav: { title: string; admin: string; public: string }
+  nav: { title: string; admin: string; public: string; about: string }
   hero: { eyebrow: string; title: string; body: string; submit: string }
   disclaimer: string
   loading: string
@@ -25,6 +25,8 @@ export interface Dictionary {
     verify: string
     methods: string
     noMethods: string
+    contact: string
+    location: string
   }
   submit: {
     title: string
@@ -39,7 +41,6 @@ export interface Dictionary {
     sending: string
     success: string
     error: string
-    dm: string
   }
   admin: {
     title: string
@@ -50,6 +51,7 @@ export interface Dictionary {
     requests: string
     newEntry: string
     addMethod: string
+    addContact: string
     save: string
     create: string
     deactivate: string
@@ -60,8 +62,12 @@ export interface Dictionary {
     country: string
     currencyField: string
     detail: string
+    label: string
     entryPlaceholder: string
     campaign: string
+    stateVe: string
+    cityVe: string
   }
   methodLabels: Record<MethodType, string>
+  contactLabels: Record<ContactMethodType, string>
 }

@@ -17,6 +17,8 @@ interface EntryRow {
   descripcion_es: string | null
   descripcion_en: string | null
   verificacion_url: string | null
+  estado_ve: string | null
+  ciudad_ve: string | null
   activo: number
   destacado: number
   creado_en: string
@@ -31,11 +33,25 @@ interface MethodRow {
   moneda: string | null
 }
 
+interface ContactRow {
+  id: number
+  entrada_id: number
+  tipo: string
+  label: string | null
+  detalle: string
+}
+
 interface MethodInput {
   tipo?: string
   pais?: string | null
   detalle?: string
   moneda?: string | null
+}
+
+interface ContactInput {
+  tipo?: string
+  label?: string | null
+  detalle?: string
 }
 
 interface EntryInput {
@@ -45,9 +61,12 @@ interface EntryInput {
   descripcion_es?: string
   descripcion_en?: string
   verificacion_url?: string
+  estado_ve?: string | null
+  ciudad_ve?: string | null
   activo?: number | boolean
   destacado?: number | boolean
   metodos?: MethodInput[]
+  contactos?: ContactInput[]
 }
 
 interface SolicitudInput {
@@ -94,12 +113,17 @@ async function readJson<T>(request: Request): Promise<T | null> {
   }
 }
 
-function normalizeEntry(row: EntryRow, methodsByEntry: Map<number, MethodRow[]>) {
+function normalizeEntry(
+  row: EntryRow,
+  methodsByEntry: Map<number, MethodRow[]>,
+  contactsByEntry: Map<number, ContactRow[]>,
+) {
   return {
     ...row,
     activo: Number(row.activo),
     destacado: Number(row.destacado),
     metodos: methodsByEntry.get(row.id) ?? [],
+    contactos: contactsByEntry.get(row.id) ?? [],
   }
 }
 
@@ -108,13 +132,15 @@ async function listEntries(env: Env, includeInactive = false) {
     ? 'SELECT * FROM entradas ORDER BY destacado DESC, creado_en DESC, id DESC'
     : 'SELECT * FROM entradas WHERE activo = 1 ORDER BY destacado DESC, creado_en DESC, id DESC'
 
-  const [entriesResult, methodsResult] = await Promise.all([
+  const [entriesResult, methodsResult, contactsResult] = await Promise.all([
     env.DB.prepare(entriesQuery).all<EntryRow>(),
     env.DB.prepare('SELECT * FROM metodos_pago ORDER BY id ASC').all<MethodRow>(),
+    env.DB.prepare('SELECT * FROM metodos_contacto ORDER BY id ASC').all<ContactRow>(),
   ])
 
   const entries = entriesResult.results
   const entryIds = new Set(entries.map((entry) => entry.id))
+
   const methodsByEntry = new Map<number, MethodRow[]>()
   for (const method of methodsResult.results) {
     if (!entryIds.has(method.entrada_id)) continue
@@ -123,18 +149,25 @@ async function listEntries(env: Env, includeInactive = false) {
     methodsByEntry.set(method.entrada_id, group)
   }
 
-  return entries.map((entry) => normalizeEntry(entry, methodsByEntry))
+  const contactsByEntry = new Map<number, ContactRow[]>()
+  for (const contact of contactsResult.results) {
+    if (!entryIds.has(contact.entrada_id)) continue
+    const group = contactsByEntry.get(contact.entrada_id) ?? []
+    group.push(contact)
+    contactsByEntry.set(contact.entrada_id, group)
+  }
+
+  return entries.map((entry) => normalizeEntry(entry, methodsByEntry, contactsByEntry))
 }
 
 async function getEntry(env: Env, id: string) {
-  const entry = await env.DB.prepare('SELECT * FROM entradas WHERE id = ? AND activo = 1')
-    .bind(id)
-    .first<EntryRow>()
+  const entry = await env.DB.prepare('SELECT * FROM entradas WHERE id = ? AND activo = 1').bind(id).first<EntryRow>()
   if (!entry) return null
-  const methods = await env.DB.prepare('SELECT * FROM metodos_pago WHERE entrada_id = ? ORDER BY id ASC')
-    .bind(id)
-    .all<MethodRow>()
-  return normalizeEntry(entry, new Map([[entry.id, methods.results]]))
+  const [methods, contacts] = await Promise.all([
+    env.DB.prepare('SELECT * FROM metodos_pago WHERE entrada_id = ? ORDER BY id ASC').bind(id).all<MethodRow>(),
+    env.DB.prepare('SELECT * FROM metodos_contacto WHERE entrada_id = ? ORDER BY id ASC').bind(id).all<ContactRow>(),
+  ])
+  return normalizeEntry(entry, new Map([[entry.id, methods.results]]), new Map([[entry.id, contacts.results]]))
 }
 
 function methodStatements(env: Env, entryId: number, methods: MethodInput[]) {
@@ -151,13 +184,26 @@ function methodStatements(env: Env, entryId: number, methods: MethodInput[]) {
     )
 }
 
+function contactStatements(env: Env, entryId: number, contacts: ContactInput[]) {
+  return contacts
+    .filter((c): c is ContactInput & { detalle: string } => Boolean(c.detalle))
+    .map((c) =>
+      env.DB.prepare('INSERT INTO metodos_contacto (entrada_id, tipo, label, detalle) VALUES (?, ?, ?, ?)').bind(
+        entryId,
+        c.tipo ?? 'web',
+        c.label ?? null,
+        c.detalle,
+      ),
+    )
+}
+
 async function createEntry(env: Env, payload: EntryInput | null): Promise<Response> {
-  if (!isValidEntry(payload)) {
+  if (!payload || !isValidEntry(payload)) {
     return json({ error: 'Invalid entry' }, { status: 400 })
   }
 
   const result = await env.DB.prepare(
-    'INSERT INTO entradas (tipo, nombre, campana, descripcion_es, descripcion_en, verificacion_url, destacado) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO entradas (tipo, nombre, campana, descripcion_es, descripcion_en, verificacion_url, estado_ve, ciudad_ve, destacado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
     .bind(
       payload.tipo,
@@ -166,12 +212,17 @@ async function createEntry(env: Env, payload: EntryInput | null): Promise<Respon
       payload.descripcion_es ?? '',
       payload.descripcion_en ?? '',
       payload.verificacion_url ?? '',
+      payload.estado_ve ?? null,
+      payload.ciudad_ve ?? null,
       payload.destacado ? 1 : 0,
     )
     .run()
 
   const entryId = Number(result.meta.last_row_id)
-  const statements = methodStatements(env, entryId, payload.metodos ?? [])
+  const statements = [
+    ...methodStatements(env, entryId, payload.metodos ?? []),
+    ...contactStatements(env, entryId, payload.contactos ?? []),
+  ]
   if (statements.length > 0) {
     await env.DB.batch(statements)
   }
@@ -180,12 +231,12 @@ async function createEntry(env: Env, payload: EntryInput | null): Promise<Respon
 }
 
 async function updateEntry(env: Env, id: string, payload: EntryInput | null): Promise<Response> {
-  if (!isValidEntry(payload)) {
+  if (!payload || !isValidEntry(payload)) {
     return json({ error: 'Invalid entry' }, { status: 400 })
   }
 
   await env.DB.prepare(
-    'UPDATE entradas SET tipo = ?, nombre = ?, campana = ?, descripcion_es = ?, descripcion_en = ?, verificacion_url = ?, activo = ?, destacado = ? WHERE id = ?',
+    'UPDATE entradas SET tipo = ?, nombre = ?, campana = ?, descripcion_es = ?, descripcion_en = ?, verificacion_url = ?, estado_ve = ?, ciudad_ve = ?, activo = ?, destacado = ? WHERE id = ?',
   )
     .bind(
       payload.tipo,
@@ -194,6 +245,8 @@ async function updateEntry(env: Env, id: string, payload: EntryInput | null): Pr
       payload.descripcion_es ?? '',
       payload.descripcion_en ?? '',
       payload.verificacion_url ?? '',
+      payload.estado_ve ?? null,
+      payload.ciudad_ve ?? null,
       payload.activo ? 1 : 0,
       payload.destacado ? 1 : 0,
       id,
@@ -203,6 +256,14 @@ async function updateEntry(env: Env, id: string, payload: EntryInput | null): Pr
   if (Array.isArray(payload.metodos)) {
     await env.DB.prepare('DELETE FROM metodos_pago WHERE entrada_id = ?').bind(id).run()
     const statements = methodStatements(env, Number(id), payload.metodos)
+    if (statements.length > 0) {
+      await env.DB.batch(statements)
+    }
+  }
+
+  if (Array.isArray(payload.contactos)) {
+    await env.DB.prepare('DELETE FROM metodos_contacto WHERE entrada_id = ?').bind(id).run()
+    const statements = contactStatements(env, Number(id), payload.contactos)
     if (statements.length > 0) {
       await env.DB.batch(statements)
     }
@@ -233,7 +294,7 @@ async function verifyTurnstile(env: Env, token: string | undefined, ip: string |
 }
 
 async function createSolicitud(request: Request, env: Env, payload: SolicitudInput | null): Promise<Response> {
-  if (!isValidSolicitud(payload)) {
+  if (!payload || !isValidSolicitud(payload)) {
     return json({ error: 'Missing required fields' }, { status: 400 })
   }
 
@@ -245,7 +306,14 @@ async function createSolicitud(request: Request, env: Env, payload: SolicitudInp
   await env.DB.prepare(
     'INSERT INTO solicitudes (nombre, campana, tipo, descripcion, verificacion_url, contacto) VALUES (?, ?, ?, ?, ?, ?)',
   )
-    .bind(payload.nombre, payload.campana ?? null, payload.tipo, payload.descripcion ?? '', payload.verificacion_url, payload.contacto)
+    .bind(
+      payload.nombre,
+      payload.campana ?? null,
+      payload.tipo,
+      payload.descripcion ?? '',
+      payload.verificacion_url,
+      payload.contacto,
+    )
     .run()
 
   return json({ ok: true }, { status: 201 })
@@ -309,6 +377,25 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const adminMethodId = routeParam(pathname, '/api/admin/metodos/')
     if (adminMethodId && method === 'DELETE') {
       await env.DB.prepare('DELETE FROM metodos_pago WHERE id = ?').bind(adminMethodId).run()
+      return json({ ok: true })
+    }
+
+    if (method === 'POST' && pathname === '/api/admin/contactos') {
+      const payload = await readJson<ContactInput & { entrada_id?: number }>(request)
+      if (!payload?.entrada_id || !payload.detalle) {
+        return json({ error: 'Invalid contact' }, { status: 400 })
+      }
+      const result = await env.DB.prepare(
+        'INSERT INTO metodos_contacto (entrada_id, tipo, label, detalle) VALUES (?, ?, ?, ?)',
+      )
+        .bind(payload.entrada_id, payload.tipo ?? 'web', payload.label ?? null, payload.detalle)
+        .run()
+      return json({ ok: true, id: Number(result.meta.last_row_id) }, { status: 201 })
+    }
+
+    const adminContactId = routeParam(pathname, '/api/admin/contactos/')
+    if (adminContactId && method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM metodos_contacto WHERE id = ?').bind(adminContactId).run()
       return json({ ok: true })
     }
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import About from './pages/About'
 import Admin from './pages/Admin'
 import Home from './pages/Home'
 import { dictionaries } from './i18n'
@@ -14,6 +15,7 @@ function getInitialLang(): Lang {
 export default function App() {
   const [lang, setLangState] = useState<Lang>(getInitialLang)
   const isAdmin = window.location.pathname.startsWith('/admin')
+  const isAbout = window.location.pathname.startsWith('/acerca') || window.location.pathname.startsWith('/about')
   const t = useMemo(() => dictionaries[lang], [lang])
 
   useEffect(() => {
@@ -29,9 +31,7 @@ export default function App() {
     }
   }
 
-  return isAdmin ? (
-    <Admin lang={lang} setLang={setLang} t={t} />
-  ) : (
-    <Home lang={lang} setLang={setLang} t={t} />
-  )
+  if (isAdmin) return <Admin lang={lang} setLang={setLang} t={t} />
+  if (isAbout) return <About lang={lang} setLang={setLang} t={t} />
+  return <Home lang={lang} setLang={setLang} t={t} />
 }
