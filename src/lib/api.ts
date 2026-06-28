@@ -60,3 +60,28 @@ export async function deactivatePublicacion(secret: string, id: number): Promise
   })
   if (!res.ok) throw new Error('Error al desactivar')
 }
+
+export async function updatePublicacion(
+  secret: string,
+  id: number,
+  payload: {
+    tipo: string
+    titulo: string
+    info: string
+    pais: string
+    estado_ve?: string
+    ciudad?: string
+    contactos: { tipo: string; valor: string }[]
+    activo: number
+  },
+): Promise<void> {
+  const res = await fetch(`/api/admin/publicaciones/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = (await res.json()) as { error?: string }
+    throw new Error(data.error ?? 'Error al guardar')
+  }
+}

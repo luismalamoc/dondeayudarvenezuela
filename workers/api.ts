@@ -40,7 +40,7 @@ interface PublicacionInput {
 const jsonHeaders: Record<string, string> = {
   'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
@@ -243,6 +243,45 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const adminId = routeParam(pathname, '/api/admin/publicaciones/')
     if (adminId && method === 'DELETE') {
       await env.DB.prepare('UPDATE publicaciones SET activo = 0 WHERE id = ?').bind(adminId).run()
+      return json({ ok: true })
+    }
+
+    if (adminId && method === 'PUT') {
+      const payload = await readJson<PublicacionInput & { activo?: number }>(request)
+      if (!isValidPublicacion(payload)) {
+        return json({ error: 'Título e información son requeridos' }, { status: 400 })
+      }
+
+      const activo = Number((payload as { activo?: number }).activo) === 0 ? 0 : 1
+
+      const validContacts = (payload.contactos ?? []).filter(
+        (c): c is { tipo: string; valor: string } =>
+          Boolean(c.valor?.trim()) && Boolean(c.tipo) && CONTACT_TYPES.has(c.tipo ?? ''),
+      )
+
+      await env.DB.batch([
+        env.DB.prepare(
+          'UPDATE publicaciones SET tipo = ?, titulo = ?, info = ?, pais = ?, estado_ve = ?, ciudad = ?, activo = ? WHERE id = ?',
+        ).bind(
+          payload.tipo!,
+          payload.titulo!.trim(),
+          payload.info!.trim(),
+          payload.pais ?? null,
+          payload.estado_ve ?? null,
+          payload.ciudad ?? null,
+          activo,
+          adminId,
+        ),
+        env.DB.prepare('DELETE FROM contactos WHERE publicacion_id = ?').bind(adminId),
+        ...validContacts.map((c) =>
+          env.DB.prepare('INSERT INTO contactos (publicacion_id, tipo, valor) VALUES (?, ?, ?)').bind(
+            adminId,
+            c.tipo,
+            c.valor.trim(),
+          ),
+        ),
+      ])
+
       return json({ ok: true })
     }
   }
